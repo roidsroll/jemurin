@@ -150,7 +150,7 @@ const App: React.FC = () => {
             className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50 p-6 bg-red-100/80 backdrop-blur-md rounded-full border-2 border-red-400 text-red-600 shadow-2xl flex flex-col items-center gap-2"
           >
             <Trash2 size={48} />
-            <span className="font-hand font-bold text-lg">Lepas untuk Hapus</span>
+            <span className="font-hand font-bold text-lg">Drop untuk Hapus</span>
           </motion.div>
         )}
       </AnimatePresence>
