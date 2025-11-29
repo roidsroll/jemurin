@@ -115,7 +115,7 @@ const App: React.FC = () => {
             Arsip Kita
           </h1>
           <p className={`text-xs md:text-sm ${theme === 'day' ? 'text-gray-600' : 'text-gray-400'} font-sans mt-1 max-w-[200px] md:max-w-none`}>
-            Semua perasaanmu, abadi di sini.
+            Semua perasaanmu,akan abadi di sini.
           </p>
         </div>
 
