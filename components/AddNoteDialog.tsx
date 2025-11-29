@@ -5,10 +5,19 @@ interface AddNoteDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (text: string) => Promise<void>;
+  initialText?: string;
 }
 
-const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, onSubmit }) => {
-  const [text, setText] = useState('');
+const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, onSubmit, initialText }) => {
+  const [text, setText] = useState(initialText || '');
+  const isEditing = initialText !== undefined;
+
+  // Reset text when dialog opens/closes or initialText changes
+  React.useEffect(() => {
+    if (isOpen) {
+      setText(initialText || '');
+    }
+  }, [isOpen, initialText]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
@@ -27,7 +36,7 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, onSubmit
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all scale-100 relative">
-        <button 
+        <button
           onClick={onClose}
           className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 p-1"
         >
@@ -35,12 +44,14 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, onSubmit
         </button>
 
         <div className="bg-red-50 p-6 pb-4 border-b border-red-100 text-center">
-          <h2 className="text-2xl font-display font-bold text-red-800">Arsip Kita</h2>
+          <h2 className="text-2xl font-display font-bold text-red-800">
+            {isEditing ? 'Sunting Kenangan' : 'Arsip Kita'}
+          </h2>
           <p className="text-xs text-red-600/70 mt-1 font-sans">
-            Gantungkan ceritamu di sini.
+            {isEditing ? 'Perbaiki ceritamu di sini.' : 'Gantungkan ceritamu di sini.'}
           </p>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="p-6">
           <div className="relative">
             <textarea
@@ -65,12 +76,12 @@ const AddNoteDialog: React.FC<AddNoteDialogProps> = ({ isOpen, onClose, onSubmit
               {isSubmitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Menjemur...
+                  {isEditing ? 'Menyimpan...' : 'Menjemur...'}
                 </>
               ) : (
                 <>
                   <Send className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  Gantung Cerita
+                  {isEditing ? 'Simpan Perubahan' : 'Gantung Cerita'}
                 </>
               )}
             </button>
