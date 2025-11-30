@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, CloudSun, MoonStar, Info, Trash2 } from 'lucide-react';
+import { Plus, CloudSun, MoonStar, Info, Trash2, X } from 'lucide-react';
 import { AnimatePresence, motion, Reorder } from 'framer-motion';
 import HangingNote from './components/HangingNote';
 import AddNoteDialog from './components/AddNoteDialog';
+import DeleteConfirmDialog from './components/DeleteConfirmDialog';
 import { Note } from './types';
 import * as db from './services/db';
 import * as gemini from './services/gemini';
@@ -15,7 +16,9 @@ const App: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
 
   // Load notes on mount
   useEffect(() => {
@@ -33,7 +36,7 @@ const App: React.FC = () => {
     init();
   }, []);
 
-  const handleSaveNote = async (text: string) => {
+  const handleSaveNote = async (text: string, image?: string) => {
     // 1. Analyze sentiment via Gemini
     const analysis = await gemini.analyzeSentiment(text);
 
@@ -42,6 +45,7 @@ const App: React.FC = () => {
       const updatedNote: Note = {
         ...editingNote,
         text,
+        image,
         sentiment: analysis.sentiment,
         color: analysis.colorHex,
       };
@@ -54,6 +58,7 @@ const App: React.FC = () => {
       const newNote: Note = {
         id: crypto.randomUUID(),
         text,
+        image,
         timestamp: Date.now(),
         author: 'user',
         sentiment: analysis.sentiment,
@@ -77,12 +82,27 @@ const App: React.FC = () => {
 
   const handleDeleteNote = async (id: string, skipConfirm?: boolean) => {
     // If dragging, we skip confirm as per user request
-    if (skipConfirm || window.confirm('Apakah Anda yakin ingin menghapus kenangan ini?')) {
+    if (skipConfirm) {
       try {
         await db.deleteNote(id);
         setNotes(prev => prev.filter(n => n.id !== id));
       } catch (err) {
         console.error("Failed to delete note", err);
+      }
+    } else {
+      setDeletingNoteId(id);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (deletingNoteId) {
+      try {
+        await db.deleteNote(deletingNoteId);
+        setNotes(prev => prev.filter(n => n.id !== deletingNoteId));
+      } catch (err) {
+        console.error("Failed to delete note", err);
+      } finally {
+        setDeletingNoteId(null);
       }
     }
   };
@@ -100,13 +120,53 @@ const App: React.FC = () => {
   // Background Styles
   const bgGradient = theme === 'day'
     ? 'bg-gradient-to-br from-slate-100 via-red-50 to-orange-50'
-    : 'bg-gradient-to-br from-slate-900 via-slate-800 to-black';
+    : 'bg-gradient-to-b from-[#0f172a] via-[#1e1b4b] to-[#312e81]';
 
   // Explicit "Benang Merah" (Red Thread) color
   const threadColor = '#dc2626'; // red-600
 
   return (
     <div className={`h-screen w-screen flex flex-col relative overflow-hidden transition-colors duration-1000 ${bgGradient}`}>
+
+      {/* Night Mode Elements: Stars and Moon */}
+      {theme === 'night' && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+          {/* Stars */}
+          <div className="absolute inset-0 opacity-70">
+            {[...Array(50)].map((_, i) => (
+              <div
+                key={i}
+                className="absolute bg-white rounded-full animate-pulse"
+                style={{
+                  top: `${Math.random() * 100}%`,
+                  left: `${Math.random() * 100}%`,
+                  width: `${Math.random() * 2 + 1}px`,
+                  height: `${Math.random() * 2 + 1}px`,
+                  animationDelay: `${Math.random() * 5}s`,
+                  opacity: Math.random()
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Moon with Silhouette */}
+          <div className="absolute top-10 right-10 md:right-20 opacity-90">
+            <div className="relative w-24 h-24 md:w-32 md:h-32">
+              {/* Glow */}
+              <div className="absolute inset-0 bg-yellow-100 rounded-full blur-xl opacity-20 animate-pulse"></div>
+              {/* Moon Body */}
+              <svg viewBox="0 0 100 100" className="w-full h-full text-yellow-100 drop-shadow-[0_0_15px_rgba(255,255,200,0.3)]">
+                <circle cx="50" cy="50" r="45" fill="currentColor" />
+                {/* Craters (Silhouette details) */}
+                <circle cx="30" cy="40" r="5" fill="#eab308" fillOpacity="0.2" />
+                <circle cx="70" cy="30" r="8" fill="#eab308" fillOpacity="0.2" />
+                <circle cx="60" cy="70" r="6" fill="#eab308" fillOpacity="0.2" />
+                <circle cx="40" cy="60" r="3" fill="#eab308" fillOpacity="0.2" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Header / HUD */}
       <div className="absolute top-0 left-0 w-full p-4 md:p-6 flex justify-between items-start z-50 pointer-events-none">
@@ -199,6 +259,7 @@ const App: React.FC = () => {
                   onDelete={handleDeleteNote}
                   onDragStart={() => setIsDragging(true)}
                   onDragEnd={() => setIsDragging(false)}
+                  onViewImage={setViewingImage}
                 />
               ))
             )}
@@ -226,9 +287,44 @@ const App: React.FC = () => {
             }}
             onSubmit={handleSaveNote}
             initialText={editingNote?.text}
+            initialImage={editingNote?.image}
           />
         </div>
       </div>
+
+      {/* Image Viewer Modal */}
+      <AnimatePresence>
+        {viewingImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setViewingImage(null)}
+            className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          >
+            <motion.img
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              src={viewingImage}
+              alt="Kenangan"
+              className="max-w-full max-h-[90vh] rounded-lg shadow-2xl object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button
+              onClick={() => setViewingImage(null)}
+              className="absolute top-4 right-4 text-white/70 hover:text-white p-2"
+            >
+              <X size={32} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <DeleteConfirmDialog
+        isOpen={!!deletingNoteId}
+        onClose={() => setDeletingNoteId(null)}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 };

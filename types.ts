@@ -7,6 +7,7 @@ export interface Note {
   color: string;
   rotation: number;
   swaySpeed: 'slow' | 'medium' | 'fast';
+  image?: string;
 }
 
 export interface SentimentResponse {
